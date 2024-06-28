@@ -1,11 +1,6 @@
-import {KintoneRestAPIClient} from '@kintone/rest-api-client';
-import {DateTime} from 'luxon';
+import { KintoneRestAPIClient } from '@kintone/rest-api-client';
+import { DateTime } from 'luxon';
 
-/**
- * Parses the configuration object and returns a new object with parsed values.
- * @param {Object} config - The configuration object.
- * @returns {Object} - The new object with parsed values.
- */
 export function getParsedConfig(config) {
   return Object.keys(config).reduce((acc, key) => {
     try {
@@ -17,20 +12,22 @@ export function getParsedConfig(config) {
   }, {});
 }
 
-/**
- * Downloads a file from Kintone using the specified file key.
- * @param {string} fileKey - The key of the file to be downloaded.
- * @returns {Promise<Object>} - A promise that resolves to the download response object.
- */
 export async function downloadFile(fileKey) {
   const client = new KintoneRestAPIClient();
-  const downloadResp = client.file.downloadFile({fileKey});
+  const downloadResp = client.file.downloadFile({ fileKey });
 
   return downloadResp;
 }
 
 export function mapConfigToReadableConfig(config) {
-  let {destinationApp, destinationExcelNameHolder, destinationReferenceHolder, mapperList, sourceAttachmentField, sourceReferenceField} = config;
+  let {
+    destinationApp,
+    destinationExcelNameHolder,
+    destinationReferenceHolder,
+    mapperList,
+    sourceAttachmentField,
+    sourceReferenceField,
+  } = config;
 
   destinationApp = destinationApp.appId;
   destinationExcelNameHolder = destinationExcelNameHolder.code;
@@ -48,16 +45,19 @@ export function mapConfigToReadableConfig(config) {
   };
 }
 
-/**
- * Normalizes the mapper list by transforming the properties of each mapper object.
- * @param {Array<Object>} mapperList - The list of mapper objects to be normalized.
- * @returns {Array<Object>} - The normalized mapper list.
- */
 function normalizeMapperList(mapperList) {
   return mapperList.map((mapper) => {
-    const {endLine, fieldCode, fieldType, isTableField, parentTable, split, startLine} = mapper;
+    const {
+      endLine,
+      fieldCode,
+      fieldType,
+      isTableField,
+      parentTable,
+      split,
+      startLine,
+    } = mapper;
 
-    let {mapTo, mapFrom} = mapper;
+    let { mapTo, mapFrom } = mapper;
 
     mapTo = mapTo?.code;
 
@@ -92,14 +92,9 @@ function normalizeMapperList(mapperList) {
   });
 }
 
-/**
- * Retrieves the structure of a table in a Kintone app.
- * @param {number} appId - The ID of the Kintone app.
- * @returns {Promise<Array<Object>>} - A promise that resolves to an array of table structures.
- */
 export async function getTableStructure(appId) {
   const client = new KintoneRestAPIClient();
-  const respFormFields = await client.app.getFormFields({app: appId});
+  const respFormFields = await client.app.getFormFields({ app: appId });
 
   const tablesOnlyArr = Object.keys(respFormFields.properties)
     .map((fieldCode) => {
@@ -112,14 +107,18 @@ export async function getTableStructure(appId) {
   return tablesOnlyArr;
 }
 
-/**
- * Processes the data from an Excel file based on the provided mapper.
- * @param {Array} excelFile - The Excel file data.
- * @param {Object} mapper - The mapper object containing mapping instructions.
- * @returns {Object} - The processed data object.
- */
 export function processData(excelFile, mapper) {
-  const {mapFrom, mapFromUntil, split, startLine, endLine, fieldCode, isTableField, parentTable, fieldType} = mapper;
+  const {
+    mapFrom,
+    mapFromUntil,
+    split,
+    startLine,
+    endLine,
+    fieldCode,
+    isTableField,
+    parentTable,
+    fieldType,
+  } = mapper;
 
   const returnedProps = {
     isTableField,
@@ -130,11 +129,14 @@ export function processData(excelFile, mapper) {
   if (isTableField) {
     mapper.split = false;
     const filteredData = excelFile.filter(
-      (cell) => cell.rowNumber >= mapFrom.rowNumber && cell.rowNumber <= mapFromUntil.rowNumber && cell.colNumber === mapFrom.colNumber,
+      (cell) =>
+        cell.rowNumber >= mapFrom.rowNumber &&
+        cell.rowNumber <= mapFromUntil.rowNumber &&
+        cell.colNumber === mapFrom.colNumber,
     );
 
     const mappedCellValueWithValues = filteredData
-      .map((cell) => ({cellValue: cell.cellValue, rowNumber: cell.rowNumber}))
+      .map((cell) => ({ cellValue: cell.cellValue, rowNumber: cell.rowNumber }))
       .filter((cell) => cell.cellValue);
     return {
       code: fieldCode,
@@ -143,7 +145,9 @@ export function processData(excelFile, mapper) {
     };
   }
 
-  const findRelatedCell = excelFile.find((cell) => cell.cellAddress === mapFrom.cellAddress);
+  const findRelatedCell = excelFile.find(
+    (cell) => cell.cellAddress === mapFrom.cellAddress,
+  );
   const cellValue = findRelatedCell?.cellValue;
 
   if (split) {
@@ -167,24 +171,12 @@ export function processData(excelFile, mapper) {
       joinString = splitString.slice(startLine - 1, endLine).join('\n');
     }
 
-    return {code: fieldCode, value: joinString, ...returnedProps};
+    return { code: fieldCode, value: joinString, ...returnedProps };
   }
 
-  return {code: fieldCode, value: cellValue, ...returnedProps};
+  return { code: fieldCode, value: cellValue, ...returnedProps };
 }
 
-/**
- * Maps the data from an Excel file to a kintone record and returns the mapped record object.
- *
- * @param {Array} normalizedMapperList - The list of normalized mappers.
- * @param {Object} excelFile - The Excel file object.
- * @param {Object} tableReferences - The table references object.
- * @param {string} fileName - The name of the Excel file.
- * @param {string} thisRecId - The ID of the current kintone record.
- * @param {string} normalizedDestinationExcelNameHolder - The normalized destination Excel name holder.
- * @param {string} normalizedDestinationReferenceHolder - The normalized destination reference holder.
- * @returns {Object} - The mapped record object.
- */
 export function mapToAddRecord(
   normalizedMapperList,
   excelFile,
@@ -205,7 +197,7 @@ export function mapToAddRecord(
   const filteredTableData = individuallyMappedMapper
     .filter((mapper) => mapper.isTableField)
     .map((mapper) => {
-      const {code, valueRowPairs, parentTable, type} = mapper;
+      const { code, valueRowPairs, parentTable, type } = mapper;
       return {
         code,
         valueRowPairs,
@@ -217,7 +209,7 @@ export function mapToAddRecord(
   const filteredNonTableData = individuallyMappedMapper
     .filter((mapper) => !mapper.isTableField)
     .map((mapper) => {
-      const {code, value, type} = mapper;
+      const { code, value, type } = mapper;
       return {
         code,
         value,
@@ -241,27 +233,22 @@ export function mapToAddRecord(
 
   uniqueParentTables.forEach((parentTable) => {
     const parentTableData = addRecord[parentTable];
-    const filteredParentTableData = parentTableData.value.filter((row) => row !== null);
+    const filteredParentTableData = parentTableData.value.filter(
+      (row) => row !== null,
+    );
 
     addRecord[parentTable].value = filteredParentTableData;
   });
 
   return {
     ...addRecord,
-    [normalizedDestinationExcelNameHolder]: {value: fileName},
-    [normalizedDestinationReferenceHolder]: {value: thisRecId},
+    [normalizedDestinationExcelNameHolder]: { value: fileName },
+    [normalizedDestinationReferenceHolder]: { value: thisRecId },
   };
 }
 
-/**
- * Maps non-table field data with type checking.
- *
- * @param {object} data - The data object containing code, value, and type properties.
- * @param {object} addRecord - The addRecord object to store the mapped data.
- * @returns {void}
- */
 function mapNonTableWithTypeCheck(data, addRecord) {
-  const {code, value, type} = data;
+  const { code, value, type } = data;
 
   if (type === 'SINGLE_LINE_TEXT' || type === 'MULTI_LINE_TEXT') {
     let usedValue = null;
@@ -274,7 +261,7 @@ function mapNonTableWithTypeCheck(data, addRecord) {
       usedValue = value;
     }
 
-    addRecord[code] = {value: usedValue, type};
+    addRecord[code] = { value: usedValue, type };
     return;
   }
 
@@ -292,7 +279,7 @@ function mapNonTableWithTypeCheck(data, addRecord) {
       }
     }
 
-    addRecord[code] = {value: usedValue, type};
+    addRecord[code] = { value: usedValue, type };
     return;
   }
 
@@ -313,23 +300,18 @@ function mapNonTableWithTypeCheck(data, addRecord) {
       }
     }
 
-    addRecord[code] = {value: usedDate, type};
+    addRecord[code] = { value: usedDate, type };
     return;
   }
 
-  addRecord[code] = {value, type};
+  addRecord[code] = { value, type };
 }
 
-/**
- * Maps table data with type checking and adds it to the `addRecord` object.
- * @param {Object} data - The data to be mapped.
- * @param {Object} addRecord - The object to which the mapped data will be added.
- */
 function mapTableWithTypeCheck(data, addRecord) {
-  const {code, valueRowPairs, parentTable, type} = data;
+  const { code, valueRowPairs, parentTable, type } = data;
 
   if (!addRecord[parentTable]) {
-    addRecord[parentTable] = {value: []};
+    addRecord[parentTable] = { value: [] };
   }
 
   valueRowPairs.forEach((valueRowPair) => {
@@ -346,16 +328,11 @@ function mapTableWithTypeCheck(data, addRecord) {
       };
     }
 
-    addRecord[parentTable].value[valueRowPair.rowNumber].value[code].value = valueRowPair.cellValue;
+    addRecord[parentTable].value[valueRowPair.rowNumber].value[code].value =
+      valueRowPair.cellValue;
   });
 }
 
-/**
- * Posts data to a Kintone app.
- * @param {Array} addRecords - The records to be added.
- * @param {number} appId - The ID of the Kintone app.
- * @returns {Promise<Object>} - A promise that resolves to the response from Kintone.
- */
 export async function postData(addRecords, appId) {
   const client = new KintoneRestAPIClient();
   const resp = await client.record.addRecords({
@@ -366,16 +343,10 @@ export async function postData(addRecords, appId) {
   return resp;
 }
 
-/**
- * Retrieves the file names and extensions of attachments based on the parsed configuration.
- *
- * @param {Object} parsedConfig - The parsed configuration object.
- * @returns {Array} An array of objects containing the file name and file extension.
- */
 export function getFileNamesAndExtensions(parsedConfig) {
-  const {sourceAttachmentField} = parsedConfig;
+  const { sourceAttachmentField } = parsedConfig;
   const sourceAttachmentFieldLabel = sourceAttachmentField.label;
-  const spanElements = document.querySelectorAll('.control-label-text-gaia');
+  const spanElements = document.querySelectorAll('.control-label-gaia');
 
   const attachmentChildrenArr = Array.from(spanElements);
   let attachmentFieldLabelElement;
@@ -386,46 +357,38 @@ export function getFileNamesAndExtensions(parsedConfig) {
     }
   });
 
-  const attachmentFieldLabelDiv = attachmentFieldLabelElement.parentElement;
-  const attachmentContainer = attachmentFieldLabelDiv.nextSibling;
-  const fileListContainer = attachmentContainer.querySelector('.input-file-filelist-list-cybozu');
+  const parentDiv = attachmentFieldLabelElement.parentElement;
+  const fileListContainer = parentDiv.querySelector('.forms-files-list-gaia');
 
-  const fileNameDivElements = fileListContainer.querySelectorAll('.plupload_file_name');
+  const fileNameDivElements = fileListContainer.querySelectorAll(
+    '.forms-file-preview-caption-name-gaia',
+  );
 
   const fileNameDivList = Array.from(fileNameDivElements);
   const fileNamesAndExtensions = fileNameDivList.map((fileNameDiv) => {
     const fileName = fileNameDiv.innerText;
     const fileExtension = fileName.split('.').pop();
 
-    return {fileName, fileExtension};
+    return { fileName, fileExtension };
   });
 
   return fileNamesAndExtensions;
 }
 
-/**
- * Validates if the parsed configuration contains only Excel files.
- *
- * @param {Object[]} parsedConfig - The parsed configuration object.
- * @returns {boolean} - Returns true if all file extensions are allowed Excel extensions, otherwise false.
- */
 export function validateExcelFilesOnly(parsedConfig) {
   const fileNamesAndExtensions = getFileNamesAndExtensions(parsedConfig);
-  const fileExtensions = fileNamesAndExtensions.map(({fileExtension}) => fileExtension);
+  const fileExtensions = fileNamesAndExtensions.map(
+    ({ fileExtension }) => fileExtension,
+  );
 
   const allowedExtensions = ['xls', 'xlsx'];
 
   return fileExtensions.every((ext) => allowedExtensions.includes(ext));
 }
 
-/**
- * Checks for duplicate file names in the parsed configuration.
- * @param {Object[]} parsedConfig - The parsed configuration object.
- * @returns {string[]} - An array of duplicate file names.
- */
 export function checkDuplicateFileNames(parsedConfig) {
   const fileNamesAndExtensions = getFileNamesAndExtensions(parsedConfig);
-  const fileNames = fileNamesAndExtensions.map(({fileName}) => fileName);
+  const fileNames = fileNamesAndExtensions.map(({ fileName }) => fileName);
 
   const duplicateFileNames = fileNames.filter((fileName, index) => {
     return fileNames.indexOf(fileName) !== index;
@@ -434,15 +397,9 @@ export function checkDuplicateFileNames(parsedConfig) {
   return duplicateFileNames;
 }
 
-/**
- * Checks if the given file names have already been posted in the destination app.
- * @param {Object} parsedConfig - The parsed configuration object.
- * @param {string[]} fileNames - An array of file names to check.
- * @returns {string[]} - An array of file names that have already been posted.
- */
 export async function checkAlreadyPosted(parsedConfig, fileNames) {
-  const {destinationApp, destinationExcelNameHolder} = parsedConfig;
-  console.log({destinationApp});
+  const { destinationApp, destinationExcelNameHolder } = parsedConfig;
+  console.log({ destinationApp });
 
   const client = new KintoneRestAPIClient();
 
@@ -459,14 +416,16 @@ export async function checkAlreadyPosted(parsedConfig, fileNames) {
     totalCount: true,
   });
 
-  console.log({resp});
+  console.log({ resp });
 
   const records = resp.records;
 
   const alreadyPostedFileNames = [];
   if (resp.totalCount > 0) {
     records.forEach((record) => {
-      alreadyPostedFileNames.push(record[destinationExcelNameHolder.code].value);
+      alreadyPostedFileNames.push(
+        record[destinationExcelNameHolder.code].value,
+      );
     });
   }
 

@@ -15,7 +15,7 @@
     "required_params": ["destinationApp", "sourceAttachmentField", "destinationReferenceHolder", "destinationExcelNameHolder"]
   },
   "name": {
-    "en": "excel_mapper"
+    "en": "Excel Mapper"
   },
   "description": {
     "en": "plugin to map excel files into kintone records."
